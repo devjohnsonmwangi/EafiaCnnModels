@@ -56,15 +56,23 @@ def handler(base64_image: str):
 
         with torch.no_grad():
             out1 = stage1(img_tensor)
+            probs1 = torch.nn.functional.softmax(out1, dim=1)
             pred1 = out1.argmax(1).item()
+            conf1 = float(probs1[0, pred1].item())
             label1 = class_stage1[pred1]
 
         pred2 = None
+        conf2 = 0.0
         final_label = label1
+        confidence = conf1
+        
         if label1 == "Abnormal":
             out2 = stage2(img_tensor)
+            probs2 = torch.nn.functional.softmax(out2, dim=1)
             pred2 = out2.argmax(1).item()
+            conf2 = float(probs2[0, pred2].item())
             final_label = class_stage2[pred2]
+            confidence = conf2
 
         chosen_model = stage2 if label1 == "Abnormal" else stage1
         target_idx = pred2 if label1 == "Abnormal" else pred1
@@ -72,11 +80,8 @@ def handler(base64_image: str):
         heatmap_base64 = generate_heatmap(chosen_model, img_tensor, original_image, target_idx)
 
         return {
-            "status": "success",
-            "stage1_prediction": label1,
-            "final_prediction": final_label,
-            "heatmap_base64": heatmap_base64
+            "prediction": final_label,
+            "confidence": confidence,
+            "heatmap": heatmap_base64,
+            "model": "resnet18_two_stage"
         }
-
-    except Exception as e:
-        return {"status": "error", "message": str(e)}

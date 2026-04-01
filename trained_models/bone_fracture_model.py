@@ -44,15 +44,18 @@ def handler(base64_image: str):
 
         with torch.no_grad():
             outputs = model(img_tensor)
+            probabilities = torch.nn.functional.softmax(outputs, dim=1)
             pred_idx = outputs.argmax(1).item()
+            confidence = float(probabilities[0, pred_idx].item())
             prediction = class_names[pred_idx]
 
         heatmap_base64 = generate_heatmap(model, img_tensor, original_image, pred_idx)
 
         return {
-            "status": "success",
             "prediction": prediction,
-            "heatmap_base64": heatmap_base64
+            "confidence": confidence,
+            "heatmap": heatmap_base64,
+            "model": "resnet18"
         }
 
     except Exception as e:

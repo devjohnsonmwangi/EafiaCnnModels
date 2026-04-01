@@ -328,7 +328,16 @@ async def detect_xray_file(file: UploadFile = File(...)):
 
 
 # X-Ray Validation endpoint (specifically for NestJS validation workflow)
-@app.post("/predict/xray_validation", response_model=PredictionResponse)
+# Custom response model for xray validation with required fields
+class XRayValidationResponse(BaseModel):
+    is_xray: bool
+    confidence: float
+    prediction: Optional[str] = "X-Ray detector"
+    heatmap: Optional[str] = None
+    model: str = "xray_detector"
+
+
+@app.post("/predict/xray_validation", response_model=XRayValidationResponse)
 def validate_xray(data: ImageInput):
     """
     Validate if an image is a valid medical X-ray.
@@ -341,10 +350,11 @@ def validate_xray(data: ImageInput):
     - image_base64: Base64 encoded PNG/JPG image
     
     Returns:
-    - prediction: "X-Ray" or "Not X-Ray"
-    - confidence: Confidence score 0-1
     - is_xray: Boolean indicating if image is classified as X-ray
-    - heatmap_base64: Optional heatmap visualization
+    - confidence: Confidence score 0-1 (0.7+ is considered valid)
+    - prediction: Model name or description
+    - heatmap: Optional heatmap visualization
+    - model: Name of model used
     """
     print("X-ray validation requested")
     
@@ -356,7 +366,14 @@ def validate_xray(data: ImageInput):
     if result.get("status") == "error":
         raise HTTPException(status_code=400, detail=result.get("message"))
     
-    return result
+    # Ensure response has required fields
+    return {
+        "is_xray": result.get("is_xray", False),
+        "confidence": result.get("confidence", 0.0),
+        "prediction": result.get("prediction", "X-Ray detector"),
+        "heatmap": result.get("heatmap_base64"),
+        "model": "xray_detector"
+    }
 
 
 # Info endpoints
